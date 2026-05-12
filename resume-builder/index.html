@@ -294,6 +294,27 @@ tailwind.config = {
   .section-action-btn:hover { background: #f1f5f9; color: #475569; }
   .section-action-btn.danger:hover { background: #fef2f2; color: #dc2626; }
 
+  /* 条目删除按钮 */
+  .entry-delete-btn {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 20px; height: 20px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    color: #94a3b8;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    z-index: 2;
+  }
+  .entry-delete-btn { display: flex; }
+  .entry-delete-btn:hover { background: #fef2f2; color: #dc2626; }
+
   /* 个人信息区 */
   .personal-info-area {
     margin-bottom: 18px;
@@ -1161,6 +1182,7 @@ tailwind.config = {
     #photo-remove-btn { display: none !important; }
     #photo-input { display: none !important; }
     .resume-section:hover .section-actions { opacity: 0 !important; }
+    .entry-delete-btn { display: none !important; }
     .personal-photo {
       max-width: 80px !important;
       max-height: 106px !important;
@@ -1603,7 +1625,8 @@ tailwind.config = {
       const orgField    = type === 'education' ? 'school' : 'company';
       const roleField   = type === 'education' ? 'degree' : 'position';
       bodyHTML = entries.map((entry, i) => `
-        <div style="margin-bottom:6px;">
+        <div style="margin-bottom:6px;position:relative;">
+          <button class="entry-delete-btn" title="删除此条目" onclick="event.stopPropagation();ResumeBuilder.deleteEntry('${id}',${i})">×</button>
           <div class="entry-row">
             <span class="entry-title" contenteditable="true" data-section="${id}" data-entry="${i}" data-field="${orgField}">${escHtml(entry[orgField] || '')}</span>
             <span class="entry-date"  contenteditable="true" data-section="${id}" data-entry="${i}" data-field="date">${escHtml(entry.date || '')}</span>
@@ -1616,7 +1639,8 @@ tailwind.config = {
     } else if (type === 'project') {
       const entries = data.entries || [];
       bodyHTML = entries.map((entry, i) => `
-        <div style="margin-bottom:6px;">
+        <div style="margin-bottom:6px;position:relative;">
+          <button class="entry-delete-btn" title="删除此条目" onclick="event.stopPropagation();ResumeBuilder.deleteEntry('${id}',${i})">×</button>
           <div class="entry-row">
             <span class="entry-title" contenteditable="true" data-section="${id}" data-entry="${i}" data-field="name">${escHtml(entry.name || '')}</span>
             <span class="entry-date"  contenteditable="true" data-section="${id}" data-entry="${i}" data-field="date">${escHtml(entry.date || '')}</span>
@@ -1638,9 +1662,12 @@ tailwind.config = {
     } else if (type === 'certificate') {
       const entries = data.entries || [];
       bodyHTML = entries.map((entry, i) => `
-        <div class="entry-row">
-          <span class="entry-title" contenteditable="true" data-section="${id}" data-entry="${i}" data-field="name">${escHtml(entry.name || '')}</span>
-          <span class="entry-date"  contenteditable="true" data-section="${id}" data-entry="${i}" data-field="date">${escHtml(entry.date || '')}</span>
+        <div style="position:relative;">
+          <button class="entry-delete-btn" title="删除此条目" onclick="event.stopPropagation();ResumeBuilder.deleteEntry('${id}',${i})">×</button>
+          <div class="entry-row">
+            <span class="entry-title" contenteditable="true" data-section="${id}" data-entry="${i}" data-field="name">${escHtml(entry.name || '')}</span>
+            <span class="entry-date"  contenteditable="true" data-section="${id}" data-entry="${i}" data-field="date">${escHtml(entry.date || '')}</span>
+          </div>
         </div>
       `).join('');
 
@@ -1651,7 +1678,8 @@ tailwind.config = {
         bodyHTML = `<div class="entry-desc" style="color:#94a3b8;font-style:italic;">点击 ＋ 添加自定义字段</div>`;
       } else {
         bodyHTML = fields.map((field, i) => `
-          <div style="margin-bottom:6px;">
+          <div style="margin-bottom:6px;position:relative;">
+            <button class="entry-delete-btn" title="删除此条目" onclick="event.stopPropagation();ResumeBuilder.deleteEntry('${id}',${i})">×</button>
             <div class="entry-row">
               <span class="entry-title" contenteditable="true" data-section="${id}" data-entry="${i}" data-field="key">${escHtml(field.key || '字段名')}</span>
               <span class="entry-date"  contenteditable="true" data-section="${id}" data-entry="${i}" data-field="value">${escHtml(field.value || '字段值')}</span>
@@ -1939,6 +1967,33 @@ tailwind.config = {
     },
 
     /** 为模块添加新条目 */
+    /** 删除模块中的某个条目 */
+    deleteEntry(sectionId, entryIndex) {
+      const section = state.sections.find(s => s.id === sectionId);
+      if (!section) return;
+      const { type, data } = section;
+      let label = '';
+      if (type === 'skill') {
+        if (!data.tags || !data.tags[entryIndex]) return;
+        label = data.tags[entryIndex];
+        data.tags.splice(entryIndex, 1);
+      } else if (type === 'custom') {
+        if (!data.fields || !data.fields[entryIndex]) return;
+        label = data.fields[entryIndex].key || data.fields[entryIndex].value || '字段';
+        data.fields.splice(entryIndex, 1);
+      } else if (type === 'education' || type === 'work' || type === 'project' || type === 'certificate') {
+        if (!data.entries || !data.entries[entryIndex]) return;
+        const entry = data.entries[entryIndex];
+        label = entry.school || entry.company || entry.name || '条目';
+        data.entries.splice(entryIndex, 1);
+      } else {
+        return;
+      }
+      saveState();
+      renderAllSections();
+      showToast(`已删除「${label}」`);
+    },
+
     addEntry(sectionId) {
       const section = state.sections.find(s => s.id === sectionId);
       if (!section) return;
