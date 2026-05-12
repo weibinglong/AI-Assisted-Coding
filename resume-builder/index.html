@@ -1475,6 +1475,7 @@ tailwind.config = {
   };
 
   const ALL_MODULE_TYPES = Object.keys(MODULE_TEMPLATES);
+  const DATA_VERSION = 2; // 数据版本号，变更默认样例时递增，旧缓存自动失效
 
   // ========== 应用状态 ==========
   let state = {
@@ -1504,7 +1505,8 @@ tailwind.config = {
   // ========== 工具函数 ==========
   function saveState() {
     try {
-      localStorage.setItem('resume-builder-data', JSON.stringify(state));
+      const saveData = { version: DATA_VERSION, ...state };
+      localStorage.setItem('resume-builder-data', JSON.stringify(saveData));
     } catch (e) { /* 静默处理 */ }
   }
 
@@ -1513,16 +1515,22 @@ tailwind.config = {
       const raw = localStorage.getItem('resume-builder-data');
       if (raw) {
         const parsed = JSON.parse(raw);
-        state = parsed;
-        // 计算 idCounter
-        let maxId = 0;
-        state.sections.forEach(s => {
-          const num = parseInt(s.id.replace('s', ''));
-          if (num > maxId) maxId = num;
-        });
-        idCounter = maxId + 1;
+        // 版本校验：版本不匹配则丢弃旧缓存，使用新默认样例
+        if (parsed.version === DATA_VERSION) {
+          state = parsed;
+          // 计算 idCounter
+          let maxId = 0;
+          state.sections.forEach(s => {
+            const num = parseInt(s.id.replace('s', ''));
+            if (num > maxId) maxId = num;
+          });
+          idCounter = maxId + 1;
+          return;
+        }
       }
     } catch (e) { /* 使用默认值 */ }
+    // 无缓存或版本不匹配，使用默认样例
+    localStorage.removeItem('resume-builder-data');
   }
 
   function showToast(msg) {
